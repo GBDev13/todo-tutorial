@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Header } from "./components/Header";
 import { Tasks } from "./components/Tasks";
 
@@ -9,7 +9,7 @@ function App() {
 
   function loadSavedTasks() {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if(saved) {
+    if (saved) {
       setTasks(JSON.parse(saved));
     }
   }
@@ -21,32 +21,57 @@ function App() {
 
   useEffect(() => {
     loadSavedTasks();
-  }, [])
+  }, []);
 
   function addTask(taskTitle) {
-    setTasksAndSave([...tasks, {
-      id: crypto.randomUUID(),
-      title: taskTitle,
-      isCompleted: false
-    }]);
+    fetch('http://localhost:8000/api/tasks/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: taskTitle,
+        is_completed: false,
+      }),
+    })
+      .then(response => response.json())
+      .then(newTask => setTasks([...tasks, newTask]))
+      .catch(error => console.error('Error adding task:', error));
   }
 
   function deleteTaskById(taskId) {
-    const newTasks = tasks.filter(task => task.id !== taskId);
-    setTasksAndSave(newTasks);
+    fetch(`http://localhost:8000/api/tasks/${taskId}/`, {
+      method: 'DELETE',
+    })
+      .then(() => setTasks(tasks.filter(task => task.id !== taskId)))
+      .catch(error => console.error('Error deleting task:', error));
   }
 
   function toggleTaskCompletedById(taskId) {
-    const newTasks = tasks.map(task => {
-      if(task.id === taskId) {
+    const updatedTasks = tasks.map(task => {
+      if (task.id === taskId) {
         return {
           ...task,
-          isCompleted: !task.isCompleted
-        }
+          isCompleted: !task.isCompleted,
+        };
       }
       return task;
     });
-    setTasksAndSave(newTasks);
+
+    setTasksAndSave(updatedTasks);
+
+    fetch(`http://localhost:8000/api/tasks/${taskId}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        is_completed: updatedTasks.find(task => task.id === taskId).isCompleted,
+      }),
+    })
+      .then(response => response.json())
+      .then(updatedTask => console.log('Task updated successfully:', updatedTask))
+      .catch(error => console.error('Error updating task:', error));
   }
 
   return (
@@ -58,7 +83,7 @@ function App() {
         onComplete={toggleTaskCompletedById}
       />
     </>
-  )
+  );
 }
 
-export default App
+export default App;
